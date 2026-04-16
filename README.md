@@ -113,49 +113,54 @@ sudo rmmod monitor
 
 ### 1. Multi-container supervision
 
-*(Insert Screenshot Here)*
+<img width="940" height="258" alt="image" src="https://github.com/user-attachments/assets/037502bf-9da1-4156-9a00-2723389df0e7" />
+<img width="940" height="211" alt="image" src="https://github.com/user-attachments/assets/b7b6dad3-c5fd-4cba-bee4-0b6e03b9d3b2" />
 
 ---
 
 ### 2. Metadata tracking (`ps`)
 
-*(Insert Screenshot Here)*
+<img width="940" height="146" alt="image" src="https://github.com/user-attachments/assets/59f3dae3-cb82-4bab-a002-d6ce4193af87" />
+<img width="940" height="156" alt="image" src="https://github.com/user-attachments/assets/7a4fa727-fdf4-4a7b-87b7-b972252f86b7" />
 
 ---
 
 ### 3. Bounded-buffer logging
 
-*(Insert Screenshot Here)*
+<img width="940" height="328" alt="image" src="https://github.com/user-attachments/assets/32279167-ae7a-47fe-924a-49a7060a5f67" />
 
 ---
 
 ### 4. CLI and IPC interaction
 
-*(Insert Screenshot Here)*
+<img width="1402" height="90" alt="image" src="https://github.com/user-attachments/assets/29178961-85bf-4359-ac7b-089557835ee4" />
 
 ---
 
 ### 5. Soft-limit warning
 
-*(Insert Screenshot Here)*
+<img width="907" height="258" alt="WhatsApp Image 2026-04-13 at 11 37 42" src="https://github.com/user-attachments/assets/e394ce22-a7fa-4764-94e9-84044f183884" />
+
 
 ---
 
 ### 6. Hard-limit enforcement
 
-*(Insert Screenshot Here)*
+<img width="1094" height="68" alt="image" src="https://github.com/user-attachments/assets/b51556b4-3a68-46e8-9d72-1b1e70cbfc37" />
+
 
 ---
 
 ### 7. Scheduling experiment
 
-*(Insert Screenshot Here)*
+<img width="814" height="147" alt="WhatsApp Image 2026-04-13 at 12 43 27" src="https://github.com/user-attachments/assets/601cdcf9-18ed-4af5-a81b-c4483ee021fc" />
+<img width="782" height="149" alt="WhatsApp Image 2026-04-13 at 12 44 31" src="https://github.com/user-attachments/assets/219a94c8-4c3e-4d31-9b35-15f601d6a056" />
 
 ---
 
 ### 8. Clean teardown (no zombies)
 
-*(Insert Screenshot Here)*
+<img width="838" height="66" alt="WhatsApp Image 2026-04-13 at 12 51 45" src="https://github.com/user-attachments/assets/7b31e2d0-e558-44be-8068-036d1716b7a9" />
 
 ---
 
