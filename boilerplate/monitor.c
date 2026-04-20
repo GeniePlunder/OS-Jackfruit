@@ -5,13 +5,13 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/pid.h>
 #include <linux/sched/signal.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h> // Added spinlock header
 
 #include "monitor_ioctl.h"
 
@@ -35,7 +35,8 @@ struct monitor_entry {
 
 // ---------------- GLOBAL ----------------
 static LIST_HEAD(monitor_list);
-static DEFINE_MUTEX(monitor_lock);
+// Replaced mutex with a spinlock
+static DEFINE_SPINLOCK(monitor_lock);
 
 static struct timer_list monitor_timer;
 static dev_t dev_num;
@@ -122,8 +123,10 @@ static void kill_process(const char *container_id,
 static void timer_callback(struct timer_list *t)
 {
     struct monitor_entry *entry, *tmp;
+    unsigned long flags;
 
-    mutex_lock(&monitor_lock);
+    // Use spin_lock_irqsave inside softirq
+    spin_lock_irqsave(&monitor_lock, flags);
 
     list_for_each_entry_safe(entry, tmp, &monitor_list, list) {
 
@@ -162,7 +165,7 @@ static void timer_callback(struct timer_list *t)
         }
     }
 
-    mutex_unlock(&monitor_lock);
+    spin_unlock_irqrestore(&monitor_lock, flags);
 
     mod_timer(&monitor_timer,
               jiffies + msecs_to_jiffies(CHECK_INTERVAL_MS));
@@ -175,6 +178,7 @@ static long monitor_ioctl(struct file *f,
                           unsigned long arg)
 {
     struct monitor_request req;
+    unsigned long flags;
 
     if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
         return -EFAULT;
@@ -184,19 +188,20 @@ static long monitor_ioctl(struct file *f,
 
         struct monitor_entry *entry, *tmp;
 
-        mutex_lock(&monitor_lock);
+        spin_lock_irqsave(&monitor_lock, flags);
 
         // Prevent duplicate
         list_for_each_entry(tmp, &monitor_list, list) {
             if (tmp->pid == req.pid) {
-                mutex_unlock(&monitor_lock);
+                spin_unlock_irqrestore(&monitor_lock, flags);
                 return -EEXIST;
             }
         }
 
-        entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+        // Changed GFP_KERNEL to GFP_ATOMIC because we are holding a spinlock
+        entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
         if (!entry) {
-            mutex_unlock(&monitor_lock);
+            spin_unlock_irqrestore(&monitor_lock, flags);
             return -ENOMEM;
         }
 
@@ -210,7 +215,7 @@ static long monitor_ioctl(struct file *f,
 
         list_add(&entry->list, &monitor_list);
 
-        mutex_unlock(&monitor_lock);
+        spin_unlock_irqrestore(&monitor_lock, flags);
 
         printk(KERN_INFO
                "[container_monitor] REGISTER container=%s pid=%d soft=%lu hard=%lu\n",
@@ -227,14 +232,14 @@ static long monitor_ioctl(struct file *f,
 
         struct monitor_entry *entry, *tmp;
 
-        mutex_lock(&monitor_lock);
+        spin_lock_irqsave(&monitor_lock, flags);
 
         list_for_each_entry_safe(entry, tmp, &monitor_list, list) {
             if (entry->pid == req.pid) {
                 list_del(&entry->list);
                 kfree(entry);
 
-                mutex_unlock(&monitor_lock);
+                spin_unlock_irqrestore(&monitor_lock, flags);
 
                 printk(KERN_INFO
                        "[container_monitor] UNREGISTER pid=%d\n",
@@ -244,7 +249,7 @@ static long monitor_ioctl(struct file *f,
             }
         }
 
-        mutex_unlock(&monitor_lock);
+        spin_unlock_irqrestore(&monitor_lock, flags);
         return -ENOENT;
     }
 
@@ -304,17 +309,18 @@ static int __init monitor_init(void)
 static void __exit monitor_exit(void)
 {
     struct monitor_entry *entry, *tmp;
+    unsigned long flags;
 
     del_timer_sync(&monitor_timer);
 
-    mutex_lock(&monitor_lock);
+    spin_lock_irqsave(&monitor_lock, flags);
 
     list_for_each_entry_safe(entry, tmp, &monitor_list, list) {
         list_del(&entry->list);
         kfree(entry);
     }
 
-    mutex_unlock(&monitor_lock);
+    spin_unlock_irqrestore(&monitor_lock, flags);
 
     cdev_del(&c_dev);
     device_destroy(cl, dev_num);
