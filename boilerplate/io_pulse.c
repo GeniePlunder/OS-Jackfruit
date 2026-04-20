@@ -1,66 +1,68 @@
-/*
- * io_pulse.c - I/O-oriented workload for scheduler experiments.
- *
- * Usage:
- *   /io_pulse [iterations] [sleep_ms]
- *
- * The program writes small bursts to a file and sleeps between them.
- * This gives students an easy I/O-heavy workload to compare with
- * cpu_hog when discussing responsiveness and scheduler behavior.
- *
- * If you copy this binary into an Alpine rootfs, make sure it is built in a
- * format that can run there.
- */
-
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
+// Define the default target file for the continuous I/O operations
 #define DEFAULT_OUTPUT "/tmp/io_pulse.out"
-
-static unsigned int parse_uint(const char *arg, unsigned int fallback)
-{
-    char *end = NULL;
-    unsigned long value = strtoul(arg, &end, 10);
-
-    if (!arg || *arg == '\0' || (end && *end != '\0') || value == 0)
-        return fallback;
-    return (unsigned int)value;
-}
 
 int main(int argc, char *argv[])
 {
-    const unsigned int iterations = (argc > 1) ? parse_uint(argv[1], 20) : 20;
-    const unsigned int sleep_ms = (argc > 2) ? parse_uint(argv[2], 200) : 200;
-    int fd;
-    unsigned int i;
+    // Default sleep duration between I/O bursts is set to 200 milliseconds
+    unsigned int sleep_ms = 200;
 
-    fd = open(DEFAULT_OUTPUT, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    // If a sleep duration is provided as a command-line argument, override the default
+    // Note: Expecting the duration as the third argument (argv[2])
+    if (argc > 2)
+        sleep_ms = atoi(argv[2]);
+
+    // Open the target file with specific flags:
+    // O_CREAT: Create the file if it doesn't already exist
+    // O_WRONLY: Open strictly for writing
+    // O_TRUNC: Truncate file to zero length if it already exists
+    // 0644: Standard file permissions (Read/write for owner, read-only for others)
+    int fd = open(DEFAULT_OUTPUT, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    
+    // Check for file opening errors and exit gracefully if it fails
     if (fd < 0) {
-        perror("open");
+        perror("Failed to open output file");
         return 1;
     }
 
-    for (i = 0; i < iterations; i++) {
-        char line[128];
-        int len = snprintf(line, sizeof(line), "io_pulse iteration=%u\n", i + 1);
+    // Initialize an iteration counter to track the number of I/O pulses
+    unsigned int i = 0;
 
-        if (write(fd, line, (size_t)len) != len) {
-            perror("write");
-            close(fd);
-            return 1;
-        }
+    // Infinite loop to continuously generate disk I/O load
+    while (1) {
+        i++;
 
+        char buf[64];
+        
+        // Format the string payload that will be written to the file
+        int len = sprintf(buf, "io_pulse iteration=%u\n", i);
+
+        // Execute the write system call to push the buffer to the file descriptor
+        write(fd, buf, len);
+        
+        // Force the filesystem to flush the buffered data to the physical disk immediately.
+        // This is crucial; without fsync, we would just be writing to RAM cache, 
+        // defeating the purpose of an I/O hog/pulse program.
         fsync(fd);
-        printf("io_pulse wrote iteration=%u\n", i + 1);
+
+        // Log the operation to standard output for real-time monitoring
+        printf("io_pulse wrote iteration=%u\n", i);
+        
+        // Ensure the standard output buffer is flushed so it prints to the terminal immediately
         fflush(stdout);
-        usleep(sleep_ms * 1000U);
+
+        // Pause execution for the specified time before the next I/O burst.
+        // usleep expects microseconds, so we multiply the millisecond value by 1000.
+        usleep(sleep_ms * 1000);
     }
 
+    // Close the file descriptor 
+    // (Note: this is technically unreachable due to the infinite loop, but kept for good practice)
     close(fd);
+    
     return 0;
 }
